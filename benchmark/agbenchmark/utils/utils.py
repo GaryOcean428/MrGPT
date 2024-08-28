@@ -183,8 +183,7 @@ def sorted_by_enum_index(
     enum: type[E],
     *,
     reverse: bool = False,
-) -> list[E]:
-    ...
+) -> list[E]: ...
 
 
 @overload
@@ -194,8 +193,7 @@ def sorted_by_enum_index(
     *,
     key: Callable[[T], Enum | None],
     reverse: bool = False,
-) -> list[T]:
-    ...
+) -> list[T]: ...
 
 
 def sorted_by_enum_index(

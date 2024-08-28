@@ -1,4 +1,5 @@
 """ Utility functions to process the identifiers of tests. """
+
 import re
 from typing import Iterator
 

@@ -72,9 +72,7 @@ def print_markdown_report(report_json_file: Path):
         result_indicator = (
             "✅"
             if test.metrics.success_percentage == 100.0
-            else "⚠️"
-            if test.metrics.success_percentage > 0
-            else "❌"
+            else "⚠️" if test.metrics.success_percentage > 0 else "❌"
         )
         click.echo(
             f"### {test_name} {result_indicator if test.metrics.attempted else '❔'}"
@@ -83,7 +81,9 @@ def print_markdown_report(report_json_file: Path):
 
         click.echo()  # spacing
 
-        click.echo(f"- **Attempted:** {'Yes 👍' if test.metrics.attempted else 'No 👎'}")
+        click.echo(
+            f"- **Attempted:** {'Yes 👍' if test.metrics.attempted else 'No 👎'}"
+        )
         click.echo(
             f"- **Success rate:** {round(test.metrics.success_percentage)}% "
             f"({len([r for r in test.results if r.success])}/{len(test.results)})"

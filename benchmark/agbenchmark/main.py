@@ -80,9 +80,9 @@ def run_benchmark(
 
     if mock:
         # TODO: unhack
-        os.environ[
-            "IS_MOCK"
-        ] = "True"  # ugly hack to make the mock work when calling from API
+        os.environ["IS_MOCK"] = (
+            "True"  # ugly hack to make the mock work when calling from API
+        )
 
     # Pass through flags
     for flag, active in {

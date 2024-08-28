@@ -1,4 +1,5 @@
 """Set up the AI and its goals"""
+
 import logging
 from typing import Optional
 

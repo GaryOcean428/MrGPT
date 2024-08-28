@@ -4,6 +4,7 @@ This is a minimal file intended to be run by users to help them manage the autog
 If you want to contribute, please use only libraries that come as part of Python.
 To ensure efficiency, add the imports to the functions so only what is needed is imported.
 """
+
 try:
     import click
 except ImportError:
@@ -133,9 +134,11 @@ def start(agent_name: str, no_setup: bool):
     script_dir = os.path.dirname(os.path.realpath(__file__))
     agent_dir = os.path.join(
         script_dir,
-        f"agents/{agent_name}"
-        if agent_name not in ["autogpt", "forge"]
-        else agent_name,
+        (
+            f"agents/{agent_name}"
+            if agent_name not in ["autogpt", "forge"]
+            else agent_name
+        ),
     )
     run_command = os.path.join(agent_dir, "run")
     run_bench_command = os.path.join(agent_dir, "run_benchmark")
@@ -252,9 +255,11 @@ def start(agent_name, subprocess_args):
     script_dir = os.path.dirname(os.path.realpath(__file__))
     agent_dir = os.path.join(
         script_dir,
-        f"agents/{agent_name}"
-        if agent_name not in ["autogpt", "forge"]
-        else agent_name,
+        (
+            f"agents/{agent_name}"
+            if agent_name not in ["autogpt", "forge"]
+            else agent_name
+        ),
     )
     benchmark_script = os.path.join(agent_dir, "run_benchmark")
     if os.path.exists(agent_dir) and os.path.isfile(benchmark_script):
@@ -371,7 +376,9 @@ def benchmark_tests_list():
                     .replace("  ", " ")
                 )
                 test_name_padded = f"{test_name:<40}"
-                click.echo(click.style(f"\t\t🔬 {test_name_padded} - {test}", fg="cyan"))
+                click.echo(
+                    click.style(f"\t\t🔬 {test_name_padded} - {test}", fg="cyan")
+                )
     else:
         click.echo(click.style("No tests found 😞", fg="red"))
 

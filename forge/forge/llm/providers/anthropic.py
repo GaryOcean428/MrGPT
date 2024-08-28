@@ -266,23 +266,27 @@ class AnthropicProvider(BaseChatModelProvider[AnthropicModelName, AnthropicSetti
                                         "content": [
                                             {
                                                 "type": "text",
-                                                "text": "Not executed because parsing "
-                                                "of your last message failed"
-                                                if not tool_call_errors
-                                                else str(e)
-                                                if (
-                                                    e := next(
-                                                        (
-                                                            tce
-                                                            for tce in tool_call_errors
-                                                            if tce.name
-                                                            == tc.function.name
-                                                        ),
-                                                        None,
+                                                "text": (
+                                                    "Not executed because parsing "
+                                                    "of your last message failed"
+                                                    if not tool_call_errors
+                                                    else (
+                                                        str(e)
+                                                        if (
+                                                            e := next(
+                                                                (
+                                                                    tce
+                                                                    for tce in tool_call_errors
+                                                                    if tce.name
+                                                                    == tc.function.name
+                                                                ),
+                                                                None,
+                                                            )
+                                                        )
+                                                        else "Not executed because validation "
+                                                        "of tool input failed"
                                                     )
-                                                )
-                                                else "Not executed because validation "
-                                                "of tool input failed",
+                                                ),
                                             }
                                         ],
                                     }

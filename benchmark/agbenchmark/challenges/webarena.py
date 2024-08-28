@@ -84,13 +84,11 @@ def resolve_uri(uri: str) -> str:
 
 class Eval(ABC):
     @abstractmethod
-    def evaluate(self, string: str) -> bool:
-        ...
+    def evaluate(self, string: str) -> bool: ...
 
     @property
     @abstractmethod
-    def description(self) -> str:
-        ...
+    def description(self) -> str: ...
 
 
 class BaseStringEval(BaseModel, Eval):
@@ -430,9 +428,11 @@ class WebArenaChallenge(BaseChallenge):
                     request.node.user_properties.append(
                         (
                             "answers",
-                            step.output
-                            if request.config.getoption("--keep-answers")
-                            else None,
+                            (
+                                step.output
+                                if request.config.getoption("--keep-answers")
+                                else None
+                            ),
                         )
                     )
             timed_out = False

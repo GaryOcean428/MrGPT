@@ -1,4 +1,5 @@
 """Model definitions for use in the API"""
+
 from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
