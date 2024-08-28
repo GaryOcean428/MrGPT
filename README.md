@@ -8,9 +8,9 @@
 
 ## How to Get Started
 
-https://github.com/user-attachments/assets/8508f4dc-b362-4cab-900f-644964a96cdf
+<https://github.com/user-attachments/assets/8508f4dc-b362-4cab-900f-644964a96cdf>
 
-### 🧱 AutoGPT Builder 
+### 🧱 AutoGPT Builder
 
 The AutoGPT Builder is the frontend. It allows you to design agents using an easy flowchart style. You build your agent by connecting blocks, where each block performs a single action. It's simple and intuitive!
 
@@ -50,12 +50,14 @@ Be part of the revolution! **AutoGPT** is here to stay, at the forefront of AI i
 &ensp;|&ensp;
 **🚀 [Contributing](CONTRIBUTING.md)**
 
-
 ---
+
 ## 🤖 AutoGPT Classic
+>
 > Below is information about the classic version of AutoGPT.
 
 **🛠️ [Build your own Agent - Quickstart](FORGE-QUICKSTART.md)**
+
 ### 🏗️ Forge
 
 **Forge your own agent!** &ndash; Forge is a ready-to-go template for your agent application. All the boilerplate code is already handled, letting you channel all your creativity into the things that set *your* agent apart. All tutorials are located [here](https://medium.com/@aiedge/autogpt-forge-e3de53cc58ec). Components from the [`forge.sdk`](/forge/forge/sdk) can also be used individually to speed up development and reduce boilerplate in your agent project.

@@ -160,7 +160,7 @@ def start(agent_name: str, no_setup: bool):
         # wait_until_conn_ready(8080)
         # click.echo()
 
-        subprocess.Popen(["./run"], cwd=agent_dir)
+        subprocess.Popen(["bash", "./run"], cwd=agent_dir)
         click.echo(f"⌛ (Re)starting agent '{agent_name}'...")
         wait_until_conn_ready(8000)
         click.echo("✅ Agent application started and available on port 8000")
