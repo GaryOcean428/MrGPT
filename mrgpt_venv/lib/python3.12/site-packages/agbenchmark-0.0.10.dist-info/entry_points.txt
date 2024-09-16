@@ -1,0 +1,3 @@
+[console_scripts]
+agbenchmark=agbenchmark.__main__:cli
+

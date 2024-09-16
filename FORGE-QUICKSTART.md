@@ -8,8 +8,8 @@ Welcome to the Quickstart Guide! This guide will walk you through setting up, bu
 
 This project supports Linux (Debian-based), Mac, and Windows Subsystem for Linux (WSL). If you use a Windows system, you must install WSL. You can find the installation instructions for WSL [here](https://learn.microsoft.com/en-us/windows/wsl/).
 
-
 ## Getting Setup
+
 1. **Fork the Repository**
    To fork the repository, follow these steps:
    - Navigate to the main page of the repository.
@@ -39,15 +39,17 @@ This project supports Linux (Debian-based), Mac, and Windows Subsystem for Linux
 
     The first command you need to use is `./run setup.` This will guide you through setting up your system.
     Initially, you will get instructions for installing Flutter and Chrome and setting up your GitHub access token like the following image:
-    
+
     ![Setup the Project](docs/content/imgs/quickstart/005_setup.png)
 
 ### For Windows Users
 
-If you're a Windows user and experience issues after installing WSL, follow the steps below to resolve them. 
+If you're a Windows user and experience issues after installing WSL, follow the steps below to resolve them.
 
-#### Update WSL 
+#### Update WSL
+
 Run the following command in Powershell or Command Prompt:
+
 1. Enable the optional WSL and Virtual Machine Platform components.
 2. Download and install the latest Linux kernel.
 3. Set WSL 2 as the default.
@@ -60,6 +62,7 @@ wsl --install
 For more detailed information and additional steps, refer to [Microsoft's WSL Setup Environment Documentation](https://learn.microsoft.com/en-us/windows/wsl/setup/environment).
 
 #### Resolve FileNotFoundError or "No such file or directory" Errors
+
 When you run `./run setup`, if you encounter errors like `No such file or directory` or `FileNotFoundError`, it might be because Windows-style line endings (CRLF - Carriage Return Line Feed) are not compatible with Unix/Linux style line endings (LF - Line Feed).
 
 To resolve this, you can use the `dos2unix` utility to convert the line endings in your script from CRLF to LF. Here’s how to install and run `dos2unix` on the script:
@@ -70,12 +73,13 @@ sudo apt install dos2unix
 dos2unix ./run
 ```
 
-After executing the above commands, running `./run setup` should work successfully. 
+After executing the above commands, running `./run setup` should work successfully.
 
 #### Store Project Files within the WSL File System
+
 If you continue to experience issues, consider storing your project files within the WSL file system instead of the Windows file system. This method avoids path translations and permissions issues and provides a more consistent development environment.
 
-You can keep running the command to get feedback on where you are up to with your setup. 
+You can keep running the command to get feedback on where you are up to with your setup.
 When setup has been completed, the command will return an output like this:
 
 ![Setup Complete](docs/content/imgs/quickstart/006_setup_complete.png)
@@ -86,8 +90,9 @@ After completing the setup, the next step is to create your agent template.
 Execute the command `./run agent create YOUR_AGENT_NAME`, where `YOUR_AGENT_NAME` should be replaced with your chosen name.
 
 Tips for naming your agent:
-* Give it its own unique name, or name it after yourself
-* Include an important aspect of your agent in the name, such as its purpose
+
+- Give it its own unique name, or name it after yourself
+- Include an important aspect of your agent in the name, such as its purpose
 
 Examples: `SwiftyosAssistant`, `PwutsPRAgent`, `MySuperAgent`
 
@@ -111,7 +116,7 @@ Upon logging in, you will get a page that looks something like this: your task h
 
 When you have finished with your agent or just need to restart it, use Ctl-C to end the session. Then, you can re-run the start command.
 
-If you are having issues and want to ensure the agent has been stopped, there is a `./run agent stop` command, which will kill the process using port 8000, which should be the agent. 
+If you are having issues and want to ensure the agent has been stopped, there is a `./run agent stop` command, which will kill the process using port 8000, which should be the agent.
 
 ## Benchmarking your Agent
 
@@ -130,7 +135,7 @@ Commands:
   categories  Benchmark categories group command
   start       Starts the benchmark command
   tests       Benchmark tests group command
-agpt % ./run benchmark categories     
+agpt % ./run benchmark categories
 Usage: cli.py benchmark categories [OPTIONS] COMMAND [ARGS]...
 
   Benchmark categories group command
@@ -140,7 +145,7 @@ Options:
 
 Commands:
   list  List benchmark categories command
-agpt % ./run benchmark tests      
+agpt % ./run benchmark tests
 Usage: cli.py benchmark tests [OPTIONS] COMMAND [ARGS]...
 
   Benchmark tests group command
@@ -154,6 +159,7 @@ Commands:
 ```
 
 The benchmark has been split into different categories of skills you can test your agent on. You can see what categories are available with
+
 ```bash
 ./run benchmark categories list
 # And what tests are available with
@@ -161,7 +167,6 @@ The benchmark has been split into different categories of skills you can test yo
 ```
 
 ![Login](docs/content/imgs/quickstart/012_tests.png)
-
 
 Finally, you can run the benchmark with
 
