@@ -5,8 +5,8 @@ setup(
     version="0.1.0",
     packages=find_packages(),
     entry_points={
-        'console_scripts': [
-            'autogpt=autogpt.__main__:main',
+        "console_scripts": [
+            "autogpt=autogpt.__main__:main",
         ],
     },
     install_requires=[

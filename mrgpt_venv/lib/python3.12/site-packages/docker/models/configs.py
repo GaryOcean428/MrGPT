@@ -1,5 +1,5 @@
 from ..api import APIClient
-from .resource import Model, Collection
+from .resource import Collection, Model
 
 
 class Config(Model):
@@ -30,6 +30,7 @@ class ConfigCollection(Collection):
 
     def create(self, **kwargs):
         obj = self.client.api.create_config(**kwargs)
+        obj.setdefault("Spec", {})["Name"] = kwargs.get("name")
         return self.prepare_model(obj)
     create.__doc__ = APIClient.create_config.__doc__
 

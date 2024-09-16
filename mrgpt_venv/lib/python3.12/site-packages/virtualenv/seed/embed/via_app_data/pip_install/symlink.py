@@ -16,7 +16,7 @@ class SymlinkPipInstall(PipInstall):
     def _generate_new_files(self):
         # create the pyc files, as the build image will be R/O
         cmd = [str(self._creator.exe), "-m", "compileall", str(self._image_dir)]
-        process = Popen(cmd, stdout=PIPE, stderr=PIPE)  # noqa: S603
+        process = Popen(cmd, stdout=PIPE, stderr=PIPE)
         process.communicate()
         # the root pyc is shared, so we'll not symlink that - but still add the pyc files to the RECORD for close
         root_py_cache = self._image_dir / "__pycache__"
@@ -40,8 +40,7 @@ class SymlinkPipInstall(PipInstall):
     def _fix_records(self, new_files):
         new_files.update(i for i in self._image_dir.iterdir())
         extra_record_data_str = self._records_text(sorted(new_files, key=str))
-        with open(str(self._dist_info / "RECORD"), "wb") as file_handler:
-            file_handler.write(extra_record_data_str.encode("utf-8"))
+        (self._dist_info / "RECORD").write_text(extra_record_data_str, encoding="utf-8")
 
     def build_image(self):
         super().build_image()

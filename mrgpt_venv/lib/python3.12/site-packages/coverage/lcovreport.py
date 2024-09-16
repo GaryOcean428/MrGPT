@@ -9,7 +9,7 @@ import base64
 import hashlib
 import sys
 
-from typing import IO, Iterable, Optional, TYPE_CHECKING
+from typing import IO, Iterable, TYPE_CHECKING
 
 from coverage.plugin import FileReporter
 from coverage.report_core import get_analysis_to_report
@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 
 def line_hash(line: str) -> str:
     """Produce a hash of a source line for use in the LCOV file."""
+    # The LCOV file format requires MD5 as a fingerprint of the file. This is
+    # not a security use.  Some security scanners raise alarms about the use of
+    # MD5 here, but it is a false positive. This is not a security concern.
     hashed = hashlib.md5(line.encode("utf-8")).digest()
     return base64.b64encode(hashed).decode("ascii").rstrip("=")
 
@@ -35,7 +38,7 @@ class LcovReporter:
         self.coverage = coverage
         self.total = Numbers(self.coverage.config.precision)
 
-    def report(self, morfs: Optional[Iterable[TMorf]], outfile: IO[str]) -> float:
+    def report(self, morfs: Iterable[TMorf] | None, outfile: IO[str]) -> float:
         """Renders the full lcov report.
 
         `morfs` is a list of modules or filenames
@@ -97,10 +100,10 @@ class LcovReporter:
         missing_arcs = analysis.missing_branch_arcs()
         executed_arcs = analysis.executed_branch_arcs()
         for block_number, block_line_number in enumerate(
-            sorted(analysis.branch_stats().keys())
+            sorted(analysis.branch_stats().keys()),
         ):
             for branch_number, line_number in enumerate(
-                sorted(missing_arcs[block_line_number])
+                sorted(missing_arcs[block_line_number]),
             ):
                 # The exit branches have a negative line number,
                 # this will not produce valid lcov. Setting
@@ -120,7 +123,7 @@ class LcovReporter:
                 outfile.write(f"BRDA:{line_number},{block_number},{branch_number},1\n")
 
         # Summary of the branch coverage.
-        if analysis.has_arcs():
+        if analysis.has_arcs:
             branch_stats = analysis.branch_stats()
             brf = sum(t for t, k in branch_stats.values())
             brh = brf - sum(t - k for t, k in branch_stats.values())

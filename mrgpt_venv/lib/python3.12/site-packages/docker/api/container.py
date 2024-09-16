@@ -1,13 +1,14 @@
 from datetime import datetime
 
-from .. import errors
-from .. import utils
+from .. import errors, utils
 from ..constants import DEFAULT_DATA_CHUNK_SIZE
-from ..types import CancellableStream
-from ..types import ContainerConfig
-from ..types import EndpointConfig
-from ..types import HostConfig
-from ..types import NetworkingConfig
+from ..types import (
+    CancellableStream,
+    ContainerConfig,
+    EndpointConfig,
+    HostConfig,
+    NetworkingConfig,
+)
 
 
 class ContainerApiMixin:
@@ -843,7 +844,7 @@ class ContainerApiMixin:
                 float (in fractional seconds)
 
         Returns:
-            (generator or str)
+            (generator of bytes or bytes)
 
         Raises:
             :py:class:`docker.errors.APIError`

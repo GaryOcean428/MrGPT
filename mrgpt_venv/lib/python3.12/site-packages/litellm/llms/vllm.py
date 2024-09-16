@@ -1,11 +1,15 @@
-import os
 import json
+import os
+import time  # type: ignore
 from enum import Enum
-import requests
-import time, httpx
-from typing import Callable, Any
+from typing import Any, Callable
+
+import httpx
+import requests  # type: ignore
+
 from litellm.utils import ModelResponse, Usage
-from .prompt_templates.factory import prompt_factory, custom_prompt
+
+from .prompt_templates.factory import custom_prompt, prompt_factory
 
 llm = None
 
@@ -91,20 +95,20 @@ def completion(
         )
         print_verbose(f"raw model_response: {outputs}")
         ## RESPONSE OBJECT
-        model_response["choices"][0]["message"]["content"] = outputs[0].outputs[0].text
+        model_response.choices[0].message.content = outputs[0].outputs[0].text  # type: ignore
 
         ## CALCULATING USAGE
         prompt_tokens = len(outputs[0].prompt_token_ids)
         completion_tokens = len(outputs[0].outputs[0].token_ids)
 
-        model_response["created"] = int(time.time())
-        model_response["model"] = model
+        model_response.created = int(time.time())
+        model_response.model = model
         usage = Usage(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=prompt_tokens + completion_tokens,
         )
-        model_response.usage = usage
+        setattr(model_response, "usage", usage)
         return model_response
 
 
@@ -173,20 +177,20 @@ def batch_completions(
     for output in outputs:
         model_response = ModelResponse()
         ## RESPONSE OBJECT
-        model_response["choices"][0]["message"]["content"] = output.outputs[0].text
+        model_response.choices[0].message.content = output.outputs[0].text  # type: ignore
 
         ## CALCULATING USAGE
         prompt_tokens = len(output.prompt_token_ids)
         completion_tokens = len(output.outputs[0].token_ids)
 
-        model_response["created"] = int(time.time())
-        model_response["model"] = model
+        model_response.created = int(time.time())
+        model_response.model = model
         usage = Usage(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=prompt_tokens + completion_tokens,
         )
-        model_response.usage = usage
+        setattr(model_response, "usage", usage)
         final_outputs.append(model_response)
     return final_outputs
 

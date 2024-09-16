@@ -21,7 +21,7 @@ functions. This module is implementing the same surface with AsyncIO semantics.
 import asyncio
 import functools
 
-from typing import Generic, Iterator, AsyncGenerator, TypeVar
+from typing import AsyncGenerator, Generic, Iterator, Optional, TypeVar
 
 import grpc
 from grpc import aio
@@ -159,7 +159,6 @@ AwaitableGrpcCall = _WrappedUnaryResponseMixin[P]
 
 def _wrap_unary_errors(callable_):
     """Map errors for Unary-Unary async callables."""
-    grpc_helpers._patch_callable_name(callable_)
 
     @functools.wraps(callable_)
     def error_remapped_callable(*args, **kwargs):
@@ -169,23 +168,13 @@ def _wrap_unary_errors(callable_):
     return error_remapped_callable
 
 
-def _wrap_stream_errors(callable_):
+def _wrap_stream_errors(callable_, wrapper_type):
     """Map errors for streaming RPC async callables."""
-    grpc_helpers._patch_callable_name(callable_)
 
     @functools.wraps(callable_)
     async def error_remapped_callable(*args, **kwargs):
         call = callable_(*args, **kwargs)
-
-        if isinstance(call, aio.UnaryStreamCall):
-            call = _WrappedUnaryStreamCall().with_call(call)
-        elif isinstance(call, aio.StreamUnaryCall):
-            call = _WrappedStreamUnaryCall().with_call(call)
-        elif isinstance(call, aio.StreamStreamCall):
-            call = _WrappedStreamStreamCall().with_call(call)
-        else:
-            raise TypeError("Unexpected type of call %s" % type(call))
-
+        call = wrapper_type().with_call(call)
         await call.wait_for_connection()
         return call
 
@@ -207,10 +196,16 @@ def wrap_errors(callable_):
 
     Returns: Callable: The wrapped gRPC callable.
     """
-    if isinstance(callable_, aio.UnaryUnaryMultiCallable):
-        return _wrap_unary_errors(callable_)
+    grpc_helpers._patch_callable_name(callable_)
+
+    if isinstance(callable_, aio.UnaryStreamMultiCallable):
+        return _wrap_stream_errors(callable_, _WrappedUnaryStreamCall)
+    elif isinstance(callable_, aio.StreamUnaryMultiCallable):
+        return _wrap_stream_errors(callable_, _WrappedStreamUnaryCall)
+    elif isinstance(callable_, aio.StreamStreamMultiCallable):
+        return _wrap_stream_errors(callable_, _WrappedStreamStreamCall)
     else:
-        return _wrap_stream_errors(callable_)
+        return _wrap_unary_errors(callable_)
 
 
 def create_channel(
@@ -223,6 +218,7 @@ def create_channel(
     default_scopes=None,
     default_host=None,
     compression=None,
+    attempt_direct_path: Optional[bool] = False,
     **kwargs
 ):
     """Create an AsyncIO secure channel with credentials.
@@ -246,6 +242,22 @@ def create_channel(
         default_host (str): The default endpoint. e.g., "pubsub.googleapis.com".
         compression (grpc.Compression): An optional value indicating the
             compression method to be used over the lifetime of the channel.
+        attempt_direct_path (Optional[bool]): If set, Direct Path will be attempted
+            when the request is made. Direct Path is only available within a Google
+            Compute Engine (GCE) environment and provides a proxyless connection
+            which increases the available throughput, reduces latency, and increases
+            reliability. Note:
+
+            - This argument should only be set in a GCE environment and for Services
+              that are known to support Direct Path.
+            - If this argument is set outside of GCE, then this request will fail
+              unless the back-end service happens to have configured fall-back to DNS.
+            - If the request causes a `ServiceUnavailable` response, it is recommended
+              that the client repeat the request with `attempt_direct_path` set to
+              `False` as the Service may not support Direct Path.
+            - Using `ssl_credentials` with `attempt_direct_path` set to `True` will
+              result in `ValueError` as this combination  is not yet supported.
+
         kwargs: Additional key-word args passed to :func:`aio.secure_channel`.
 
     Returns:
@@ -253,7 +265,14 @@ def create_channel(
 
     Raises:
         google.api_core.DuplicateCredentialArgs: If both a credentials object and credentials_file are passed.
+        ValueError: If `ssl_credentials` is set and `attempt_direct_path` is set to `True`.
     """
+
+    # If `ssl_credentials` is set and `attempt_direct_path` is set to `True`,
+    # raise ValueError as this is not yet supported.
+    # See https://github.com/googleapis/python-api-core/issues/590
+    if ssl_credentials and attempt_direct_path:
+        raise ValueError("Using ssl_credentials with Direct Path is not supported")
 
     composite_credentials = grpc_helpers._create_composite_credentials(
         credentials=credentials,
@@ -264,6 +283,9 @@ def create_channel(
         quota_project_id=quota_project_id,
         default_host=default_host,
     )
+
+    if attempt_direct_path:
+        target = grpc_helpers._modify_target_for_direct_path(target)
 
     return aio.secure_channel(
         target, composite_credentials, compression=compression, **kwargs
