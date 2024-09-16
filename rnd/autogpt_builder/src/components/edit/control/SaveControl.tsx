@@ -10,9 +10,16 @@ import { Button } from "@/components/ui/button";
 import { GraphMeta } from "@/lib/autogpt-server-api";
 import { Label } from "@/components/ui/label";
 import { IconSave } from "@/components/ui/icons";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SaveControlProps {
   agentMeta: GraphMeta | null;
+  agentName: string;
+  agentDescription: string;
   onSave: (isTemplate: boolean | undefined) => void;
   onNameChange: (name: string) => void;
   onDescriptionChange: (description: string) => void;
@@ -30,7 +37,9 @@ interface SaveControlProps {
 export const SaveControl = ({
   agentMeta,
   onSave,
+  agentName,
   onNameChange,
+  agentDescription,
   onDescriptionChange,
 }: SaveControlProps) => {
   /**
@@ -51,11 +60,16 @@ export const SaveControl = ({
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <IconSave />
-        </Button>
-      </PopoverTrigger>
+      <Tooltip delayDuration={500}>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <IconSave />
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="right">Save</TooltipContent>
+      </Tooltip>
       <PopoverContent side="right" sideOffset={15} align="start">
         <Card className="border-none shadow-none">
           <CardContent className="p-4">
@@ -65,7 +79,7 @@ export const SaveControl = ({
                 id="name"
                 placeholder="Enter your agent name"
                 className="col-span-3"
-                defaultValue={agentMeta?.name || ""}
+                value={agentName}
                 onChange={(e) => onNameChange(e.target.value)}
               />
               <Label htmlFor="description">Description</Label>
@@ -73,9 +87,21 @@ export const SaveControl = ({
                 id="description"
                 placeholder="Your agent description"
                 className="col-span-3"
-                defaultValue={agentMeta?.description || ""}
+                value={agentDescription}
                 onChange={(e) => onDescriptionChange(e.target.value)}
               />
+              {agentMeta?.version && (
+                <>
+                  <Label htmlFor="version">Version</Label>
+                  <Input
+                    id="version"
+                    placeholder="Version"
+                    className="col-span-3"
+                    value={agentMeta?.version || "-"}
+                    disabled
+                  />
+                </>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col items-stretch gap-2">

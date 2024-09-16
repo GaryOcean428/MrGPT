@@ -34,8 +34,16 @@ import ConnectionLine from "./ConnectionLine";
 import { Control, ControlPanel } from "@/components/edit/control/ControlPanel";
 import { SaveControl } from "@/components/edit/control/SaveControl";
 import { BlocksControl } from "@/components/edit/control/BlocksControl";
-import { IconPlay, IconRedo2, IconUndo2 } from "@/components/ui/icons";
+import {
+  IconPlay,
+  IconRedo2,
+  IconSquare,
+  IconUndo2,
+} from "@/components/ui/icons";
+import { startTutorial } from "./tutorial";
 import useAgentGraph from "@/hooks/useAgentGraph";
+import { v4 as uuidv4 } from "uuid";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 // This is for the history, this is the minimum distance a block must move before it is logged
 // It helps to prevent spamming the history with small movements especially when pressing on a input in a block
@@ -44,6 +52,7 @@ const MINIMUM_MOVE_BEFORE_LOG = 50;
 type FlowContextType = {
   visualizeBeads: "no" | "static" | "animate";
   setIsAnyModalOpen: (isOpen: boolean) => void;
+  getNextNodeId: () => string;
 };
 
 export const FlowContext = createContext<FlowContextType | null>(null);
@@ -71,17 +80,48 @@ const FlowEditor: React.FC<{
     availableNodes,
     getOutputType,
     requestSave,
-    requestSaveRun,
+    requestSaveAndRun,
+    requestStopRun,
+    isRunning,
     nodes,
     setNodes,
     edges,
     setEdges,
   } = useAgentGraph(flowID, template, visualizeBeads !== "no");
 
+  const router = useRouter();
+  const pathname = usePathname();
   const initialPositionRef = useRef<{
     [key: string]: { x: number; y: number };
   }>({});
   const isDragging = useRef(false);
+
+  // State to control if tutorial has started
+  const [tutorialStarted, setTutorialStarted] = useState(false);
+  // State to control if blocks menu should be pinned open
+  const [pinBlocksPopover, setPinBlocksPopover] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // If resetting tutorial
+    if (params.get("resetTutorial") === "true") {
+      localStorage.removeItem("shepherd-tour"); // Clear tutorial flag
+      router.push(pathname);
+    } else {
+      // Otherwise, start tutorial if conditions are met
+      const shouldStartTutorial = !localStorage.getItem("shepherd-tour");
+      if (
+        shouldStartTutorial &&
+        availableNodes.length > 0 &&
+        !tutorialStarted
+      ) {
+        startTutorial(setPinBlocksPopover);
+        setTutorialStarted(true);
+        localStorage.setItem("shepherd-tour", "yes");
+      }
+    }
+  }, [availableNodes, tutorialStarted, router, pathname]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -151,7 +191,6 @@ const FlowEditor: React.FC<{
         data: {
           ...node.data,
           status: undefined,
-          output_data: undefined,
           isOutputOpen: false,
         },
       }));
@@ -167,9 +206,19 @@ const FlowEditor: React.FC<{
 
       // Remove all edges that were connected to deleted nodes
       nodeChanges
-        .filter((change) => change.type == "remove")
+        .filter((change) => change.type === "remove")
         .forEach((deletedNode) => {
           const nodeID = deletedNode.id;
+          const deletedNodeData = nodes.find((node) => node.id === nodeID);
+
+          if (deletedNodeData) {
+            history.push({
+              type: "DELETE_NODE",
+              payload: { node: deletedNodeData },
+              undo: () => addNodes(deletedNodeData),
+              redo: () => deleteElements({ nodes: [{ id: nodeID }] }),
+            });
+          }
 
           const connectedEdges = edges.filter((edge) =>
             [edge.source, edge.target].includes(nodeID),
@@ -179,7 +228,7 @@ const FlowEditor: React.FC<{
           });
         });
     },
-    [deleteElements, setNodes],
+    [deleteElements, setNodes, nodes, edges, addNodes],
   );
 
   const formatEdgeID = useCallback((conn: Link | Connection): string => {
@@ -192,8 +241,22 @@ const FlowEditor: React.FC<{
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
+      // Check if this exact connection already exists
+      const existingConnection = edges.find(
+        (edge) =>
+          edge.source === connection.source &&
+          edge.target === connection.target &&
+          edge.sourceHandle === connection.sourceHandle &&
+          edge.targetHandle === connection.targetHandle,
+      );
+
+      if (existingConnection) {
+        console.warn("This exact connection already exists.");
+        return;
+      }
+
       const edgeColor = getTypeColor(
-        getOutputType(connection.source!, connection.sourceHandle!),
+        getOutputType(nodes, connection.source!, connection.sourceHandle!),
       );
       const sourceNode = getNode(connection.source!);
       const newEdge: CustomEdge = {
@@ -227,7 +290,16 @@ const FlowEditor: React.FC<{
       });
       clearNodesStatusAndOutput(); // Clear status and output on connection change
     },
-    [getNode, addEdges, history, deleteElements, clearNodesStatusAndOutput],
+    [
+      getNode,
+      addEdges,
+      deleteElements,
+      clearNodesStatusAndOutput,
+      nodes,
+      edges,
+      formatEdgeID,
+      getOutputType,
+    ],
   );
 
   const onEdgesChange = useCallback(
@@ -306,8 +378,12 @@ const FlowEditor: React.FC<{
         clearNodesStatusAndOutput();
       }
     },
-    [setNodes, clearNodesStatusAndOutput],
+    [setNodes, clearNodesStatusAndOutput, setEdges],
   );
+
+  const getNextNodeId = useCallback(() => {
+    return uuidv4();
+  }, []);
 
   const { x, y, zoom } = useViewport();
 
@@ -341,6 +417,7 @@ const FlowEditor: React.FC<{
           isOutputOpen: false,
           block_id: blockId,
           isOutputStatic: nodeSchema.staticOutput,
+          uiType: nodeSchema.uiType,
         },
       };
 
@@ -359,7 +436,6 @@ const FlowEditor: React.FC<{
       nodeId,
       availableNodes,
       addNodes,
-      setNodes,
       deleteElements,
       clearNodesStatusAndOutput,
       x,
@@ -412,7 +488,7 @@ const FlowEditor: React.FC<{
                 data: {
                   ...node.data,
                   status: undefined, // Reset status
-                  output_data: undefined, // Clear output data
+                  executionResults: undefined, // Clear output data
                 },
               };
             });
@@ -474,14 +550,16 @@ const FlowEditor: React.FC<{
       onClick: handleRedo,
     },
     {
-      label: "Run",
-      icon: <IconPlay />,
-      onClick: requestSaveRun,
+      label: !isRunning ? "Run" : "Stop",
+      icon: !isRunning ? <IconPlay /> : <IconSquare />,
+      onClick: !isRunning ? requestSaveAndRun : requestStopRun,
     },
   ];
 
   return (
-    <FlowContext.Provider value={{ visualizeBeads, setIsAnyModalOpen }}>
+    <FlowContext.Provider
+      value={{ visualizeBeads, setIsAnyModalOpen, getNextNodeId }}
+    >
       <div className={className}>
         <ReactFlow
           nodes={nodes}
@@ -502,11 +580,17 @@ const FlowEditor: React.FC<{
           <Controls />
           <Background />
           <ControlPanel className="absolute z-10" controls={editorControls}>
-            <BlocksControl blocks={availableNodes} addBlock={addNode} />
+            <BlocksControl
+              pinBlocksPopover={pinBlocksPopover} // Pass the state to BlocksControl
+              blocks={availableNodes}
+              addBlock={addNode}
+            />
             <SaveControl
               agentMeta={savedAgent}
               onSave={(isTemplate) => requestSave(isTemplate ?? false)}
+              agentDescription={agentDescription}
               onDescriptionChange={setAgentDescription}
+              agentName={agentName}
               onNameChange={setAgentName}
             />
           </ControlPanel>

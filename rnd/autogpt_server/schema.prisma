@@ -1,6 +1,7 @@
+// THIS FILE IS AUTO-GENERATED, RUN `poetry run schema` TO UPDATE
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -11,16 +12,17 @@ generator client {
 
 // User model to mirror Auth provider users
 model User {
-  id            String   @id // This should match the Supabase user ID
-  email         String   @unique
-  name          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id // This should match the Supabase user ID
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   AgentGraphs                  AgentGraph[]
   AgentGraphExecutions         AgentGraphExecution[]
   AgentGraphExecutionSchedules AgentGraphExecutionSchedule[]
+  UserBlockCredit              UserBlockCredit[]
 
   @@index([id])
   @@index([email])
@@ -28,8 +30,10 @@ model User {
 
 // This model describes the Agent Graph/Flow (Multi Agent System).
 model AgentGraph {
-  id      String @default(uuid())
-  version Int    @default(1)
+  id        String    @default(uuid())
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 
   name        String?
   description String?
@@ -108,11 +112,26 @@ model AgentBlock {
 
   // Prisma requires explicit back-references.
   ReferencedByAgentNode AgentNode[]
+  UserBlockCredit       UserBlockCredit[]
+}
+
+// This model describes the status of an AgentGraphExecution or AgentNodeExecution.
+enum AgentExecutionStatus {
+  INCOMPLETE
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
 }
 
 // This model describes the execution of an AgentGraph.
 model AgentGraphExecution {
-  id String @id @default(uuid())
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  startedAt DateTime?
+
+  executionStatus AgentExecutionStatus @default(COMPLETED)
 
   agentGraphId      String
   agentGraphVersion Int        @default(1)
@@ -123,6 +142,8 @@ model AgentGraphExecution {
   // Link to User model
   userId String
   user   User   @relation(fields: [userId], references: [id])
+
+  stats String? // JSON serialized object
 }
 
 // This model describes the execution of an AgentNode.
@@ -138,15 +159,15 @@ model AgentNodeExecution {
   Input  AgentNodeExecutionInputOutput[] @relation("AgentNodeExecutionInput")
   Output AgentNodeExecutionInputOutput[] @relation("AgentNodeExecutionOutput")
 
-  // sqlite does not support enum
-  // enum Status { INCOMPLETE, QUEUED, RUNNING, SUCCESS, FAILED }
-  executionStatus String
+  executionStatus AgentExecutionStatus @default(COMPLETED)
   // Final JSON serialized input data for the node execution.
   executionData   String?
-  addedTime       DateTime  @default(now())
+  addedTime       DateTime             @default(now())
   queuedTime      DateTime?
   startedTime     DateTime?
   endedTime       DateTime?
+
+  stats String? // JSON serialized object
 }
 
 // This model describes the output of an AgentNodeExecution.
@@ -169,7 +190,9 @@ model AgentNodeExecutionInputOutput {
 
 // This model describes the recurring execution schedule of an Agent.
 model AgentGraphExecutionSchedule {
-  id String @id
+  id        String    @id
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 
   agentGraphId      String
   agentGraphVersion Int        @default(1)
@@ -187,4 +210,28 @@ model AgentGraphExecutionSchedule {
   user   User   @relation(fields: [userId], references: [id])
 
   @@index([isEnabled])
+}
+
+enum UserBlockCreditType {
+  TOP_UP
+  USAGE
+}
+
+model UserBlockCredit {
+  transactionKey String   @default(uuid())
+  createdAt      DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  blockId String?
+  block   AgentBlock? @relation(fields: [blockId], references: [id])
+
+  amount Int
+  type   UserBlockCreditType
+
+  isActive Boolean @default(true)
+  metadata Json?
+
+  @@id(name: "creditTransactionIdentifier", [transactionKey, userId])
 }

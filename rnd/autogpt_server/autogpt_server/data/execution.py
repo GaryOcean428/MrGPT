@@ -1,15 +1,19 @@
 from collections import defaultdict
 from datetime import datetime, timezone
-from enum import Enum
 from multiprocessing import Manager
 from typing import Any, Generic, TypeVar
 
+from prisma.enums import AgentExecutionStatus
 from prisma.models import (
     AgentGraphExecution,
     AgentNodeExecution,
     AgentNodeExecutionInputOutput,
 )
-from prisma.types import AgentGraphExecutionWhereInput
+from prisma.types import (
+    AgentGraphExecutionInclude,
+    AgentGraphExecutionWhereInput,
+    AgentNodeExecutionInclude,
+)
 from pydantic import BaseModel
 
 from autogpt_server.data.block import BlockData, BlockInput, CompletedBlockOutput
@@ -17,24 +21,22 @@ from autogpt_server.util import json, mock
 
 
 class GraphExecution(BaseModel):
+    user_id: str
     graph_exec_id: str
+    graph_id: str
     start_node_execs: list["NodeExecution"]
 
 
 class NodeExecution(BaseModel):
+    user_id: str
     graph_exec_id: str
+    graph_id: str
     node_exec_id: str
     node_id: str
     data: BlockInput
 
 
-class ExecutionStatus(str, Enum):
-    INCOMPLETE = "INCOMPLETE"
-    QUEUED = "QUEUED"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-
+ExecutionStatus = AgentExecutionStatus
 
 T = TypeVar("T")
 
@@ -108,11 +110,22 @@ class ExecutionResult(BaseModel):
 
 # --------------------- Model functions --------------------- #
 
-EXECUTION_RESULT_INCLUDE = {
+EXECUTION_RESULT_INCLUDE: AgentNodeExecutionInclude = {
     "Input": True,
     "Output": True,
     "AgentNode": True,
     "AgentGraphExecution": True,
+}
+
+GRAPH_EXECUTION_INCLUDE: AgentGraphExecutionInclude = {
+    "AgentNodeExecutions": {
+        "include": {
+            "Input": True,
+            "Output": True,
+            "AgentNode": True,
+            "AgentGraphExecution": True,
+        }
+    }
 }
 
 
@@ -131,6 +144,7 @@ async def create_graph_execution(
         data={
             "agentGraphId": graph_id,
             "agentGraphVersion": graph_version,
+            "executionStatus": ExecutionStatus.QUEUED,
             "AgentNodeExecutions": {
                 "create": [  # type: ignore
                     {
@@ -148,9 +162,7 @@ async def create_graph_execution(
             },
             "userId": user_id,
         },
-        include={
-            "AgentNodeExecutions": {"include": EXECUTION_RESULT_INCLUDE}  # type: ignore
-        },
+        include=GRAPH_EXECUTION_INCLUDE,
     )
 
     return result.id, [
@@ -244,8 +256,35 @@ async def upsert_execution_output(
     )
 
 
+async def update_graph_execution_start_time(graph_exec_id: str):
+    await AgentGraphExecution.prisma().update(
+        where={"id": graph_exec_id},
+        data={
+            "executionStatus": ExecutionStatus.RUNNING,
+            "startedAt": datetime.now(tz=timezone.utc),
+        },
+    )
+
+
+async def update_graph_execution_stats(graph_exec_id: str, stats: dict[str, Any]):
+    await AgentGraphExecution.prisma().update(
+        where={"id": graph_exec_id},
+        data={"executionStatus": ExecutionStatus.COMPLETED, "stats": json.dumps(stats)},
+    )
+
+
+async def update_node_execution_stats(node_exec_id: str, stats: dict[str, Any]):
+    await AgentNodeExecution.prisma().update(
+        where={"id": node_exec_id},
+        data={"stats": json.dumps(stats)},
+    )
+
+
 async def update_execution_status(
-    node_exec_id: str, status: ExecutionStatus, execution_data: BlockInput | None = None
+    node_exec_id: str,
+    status: ExecutionStatus,
+    execution_data: BlockInput | None = None,
+    stats: dict[str, Any] | None = None,
 ) -> ExecutionResult:
     if status == ExecutionStatus.QUEUED and execution_data is None:
         raise ValueError("Execution data must be provided when queuing an execution.")
@@ -258,17 +297,38 @@ async def update_execution_status(
         **({"endedTime": now} if status == ExecutionStatus.FAILED else {}),
         **({"endedTime": now} if status == ExecutionStatus.COMPLETED else {}),
         **({"executionData": json.dumps(execution_data)} if execution_data else {}),
+        **({"stats": json.dumps(stats)} if stats else {}),
     }
 
     res = await AgentNodeExecution.prisma().update(
         where={"id": node_exec_id},
         data=data,  # type: ignore
-        include=EXECUTION_RESULT_INCLUDE,  # type: ignore
+        include=EXECUTION_RESULT_INCLUDE,
     )
     if not res:
         raise ValueError(f"Execution {node_exec_id} not found.")
 
     return ExecutionResult.from_db(res)
+
+
+async def get_graph_execution(
+    graph_exec_id: str, user_id: str
+) -> AgentGraphExecution | None:
+    """
+    Retrieve a specific graph execution by its ID.
+
+    Args:
+        graph_exec_id (str): The ID of the graph execution to retrieve.
+        user_id (str): The ID of the user to whom the graph (execution) belongs.
+
+    Returns:
+        AgentGraphExecution | None: The graph execution if found, None otherwise.
+    """
+    execution = await AgentGraphExecution.prisma().find_first(
+        where={"id": graph_exec_id, "userId": user_id},
+        include=GRAPH_EXECUTION_INCLUDE,
+    )
+    return execution
 
 
 async def list_executions(graph_id: str, graph_version: int | None = None) -> list[str]:
@@ -282,7 +342,7 @@ async def list_executions(graph_id: str, graph_version: int | None = None) -> li
 async def get_execution_results(graph_exec_id: str) -> list[ExecutionResult]:
     executions = await AgentNodeExecution.prisma().find_many(
         where={"agentGraphExecutionId": graph_exec_id},
-        include=EXECUTION_RESULT_INCLUDE,  # type: ignore
+        include=EXECUTION_RESULT_INCLUDE,
         order=[
             {"queuedTime": "asc"},
             {"addedTime": "asc"},  # Fallback: Incomplete execs has no queuedTime.
@@ -372,14 +432,14 @@ def merge_execution_input(data: BlockInput) -> BlockInput:
 
 async def get_latest_execution(node_id: str, graph_eid: str) -> ExecutionResult | None:
     execution = await AgentNodeExecution.prisma().find_first(
-        where={  # type: ignore
+        where={
             "agentNodeId": node_id,
             "agentGraphExecutionId": graph_eid,
             "executionStatus": {"not": ExecutionStatus.INCOMPLETE},
-            "executionData": {"not": None},
+            "executionData": {"not": None},  # type: ignore
         },
         order={"queuedTime": "desc"},
-        include=EXECUTION_RESULT_INCLUDE,  # type: ignore
+        include=EXECUTION_RESULT_INCLUDE,
     )
     if not execution:
         return None
@@ -390,11 +450,11 @@ async def get_incomplete_executions(
     node_id: str, graph_eid: str
 ) -> list[ExecutionResult]:
     executions = await AgentNodeExecution.prisma().find_many(
-        where={  # type: ignore
+        where={
             "agentNodeId": node_id,
             "agentGraphExecutionId": graph_eid,
             "executionStatus": ExecutionStatus.INCOMPLETE,
         },
-        include=EXECUTION_RESULT_INCLUDE,  # type: ignore
+        include=EXECUTION_RESULT_INCLUDE,
     )
     return [ExecutionResult.from_db(execution) for execution in executions]
