@@ -12,7 +12,7 @@ import forge
 from forge.config.base import BaseConfig
 from forge.logging.config import LoggingConfig
 from forge.models.config import Configurable
-from pydantic import ValidationError, validator
+from pydantic import field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class AppConfig(BaseConfig):
             AZURE_CONFIG_FILE
         )
 
-    @validator("openai_functions")
+    @field_validator("openai_functions")
     def validate_openai_functions(cls, value, values):
         if value:
             smart_llm = values.get("smart_llm")

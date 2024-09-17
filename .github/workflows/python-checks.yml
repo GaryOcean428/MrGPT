@@ -2,7 +2,7 @@ name: Python checks
 
 on:
   push:
-    branches: [ master, development, ci-test* ]
+    branches: [ master, development, ci-test, 1.0.1* ]
     paths:
       - '.github/workflows/lint-ci.yml'
       - 'autogpt/**'
